@@ -36,10 +36,12 @@ module.exports = (sequelize, DataTypes) => {
 
     // Define a static method signup in the user.js model file that accepts an object with a username, email, and password key. Hash the password using the bcryptjs package's hashSync method. Create a User with the username, email, and hashedPassword. Return the created user using the currentUser scope.
 
-    static async signup({ username, email, password }) {
+    static async signup({ username, firstName, lastName, email, password }) {
       const hashedPassword = bcrypt.hashSync(password);
       const user = await User.create({
         username,
+        firstName,
+        lastName,
         email,
         hashedPassword,
       });
@@ -57,6 +59,20 @@ module.exports = (sequelize, DataTypes) => {
   }
   User.init(
     {
+      firstName: {
+        allowNull: false,
+        type: DataTypes.STRING(30),
+        validate: {
+          len: [1, 30],
+        },
+      },
+      lastName: {
+        allowNull: false,
+        type: DataTypes.STRING(30),
+        validate: {
+          len: [1, 30],
+        },
+      },
       username: {
         type: DataTypes.STRING(30),
         allowNull: false,
@@ -97,7 +113,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       scopes: {
         currentUser: {
-          attributes: { exclude: ["hashedPassword"] },
+          attributes: { exclude: ["hashedPassword", "createdAt", "updatedAt"] },
         },
         loginUser: {
           attributes: {},
