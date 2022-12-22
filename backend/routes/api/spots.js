@@ -1,26 +1,48 @@
 const express = require("express");
-const { Spot, User, SpotImage } = require("../../db/models");
+const { Spot, User, SpotImage, Review, sequelize } = require("../../db/models");
 const { check, validationResult } = require("express-validator");
 const { requireAuth } = require("../../utils/auth");
 const router = express.Router();
 
-//Get all Spots without "avgRating" and "previewImage"
+//Get all Spots
 
 router.get("/", async (req, res, next) => {
-  let allSpots = {};
-  allSpots.Spots = await Spot.findAll();
+  let Spots = await Spot.findAll({
+    include: [
+      { model: SpotImage, attributes: [] },
+      { model: Review, attributes: [] },
+    ],
+    attributes: {
+      include: [
+        [sequelize.fn("AVG", sequelize.col("Reviews.stars")), "avgRating"],
+        [sequelize.col("SpotImages.url"), "previewImage"],
+      ],
+    },
+  });
   res.status(200);
-  return res.json(allSpots);
+  return res.json({ Spots });
 });
 
-//Get all Spots owned by the Current User without "avgRating" and "previewImage"
+//Get all Spots owned by the Current User
 router.get("/current", requireAuth, async (req, res, next) => {
   const { id } = req.user;
   let allSpots = {};
   let where = {
     ownerId: id,
   };
-  allSpots.Spots = await Spot.findAll({ where });
+  allSpots.Spots = await Spot.findAll({
+    where,
+    include: [
+      { model: SpotImage, attributes: [] },
+      { model: Review, attributes: [] },
+    ],
+    attributes: {
+      include: [
+        [sequelize.fn("AVG", sequelize.col("Reviews.stars")), "avgRating"],
+        [sequelize.col("SpotImages.url"), "previewImage"],
+      ],
+    },
+  });
   res.status(200);
   return res.json(allSpots);
 });
