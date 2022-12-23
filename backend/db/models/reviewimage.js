@@ -1,7 +1,7 @@
 "use strict";
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class SpotImage extends Model {
+  class ReviewImage extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -9,35 +9,30 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      SpotImage.belongsTo(models.Spot, { foreignKey: "spotId" });
+      ReviewImage.belongsTo(models.Review, { foreignKey: "reviewId" });
     }
   }
-  SpotImage.init(
+  ReviewImage.init(
     {
-      spotId: {
+      reviewId: {
         type: DataTypes.INTEGER,
+        references: {
+          model: "Reviews",
+          key: "id",
+        },
       },
       url: {
-        allowNull: false,
         type: DataTypes.STRING,
+        allowNull: false,
         validate: {
           isUrl: true,
         },
       },
-      preview: {
-        allowNull: false,
-        type: DataTypes.BOOLEAN,
-      },
     },
     {
       sequelize,
-      modelName: "SpotImage",
-      defaultScope: {
-        attributes: {
-          exclude: ["spotId", "updatedAt", "createdAt"],
-        },
-      },
+      modelName: "ReviewImage",
     }
   );
-  return SpotImage;
+  return ReviewImage;
 };
