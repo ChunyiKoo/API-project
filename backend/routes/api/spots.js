@@ -202,6 +202,7 @@ router.post("/", validateCreateSpot, async (req, res, next) => {
     req.body;
 
   const newSpot = await Spot.create({
+    ownerId: id,
     address,
     city,
     state,
@@ -211,7 +212,6 @@ router.post("/", validateCreateSpot, async (req, res, next) => {
     name,
     description,
     price,
-    ownerId: id,
   });
 
   res.status(201);
