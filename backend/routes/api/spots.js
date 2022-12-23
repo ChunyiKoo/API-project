@@ -2,23 +2,45 @@ const express = require("express");
 const { Spot, User, SpotImage, Review, sequelize } = require("../../db/models");
 const { check, validationResult } = require("express-validator");
 const { requireAuth } = require("../../utils/auth");
+const { NUMBER } = require("sequelize");
 const router = express.Router();
 
 //Get all Spots
 
 router.get("/", async (req, res, next) => {
-  let Spots = await Spot.findAll({
-    include: [
-      { model: SpotImage, attributes: [] },
-      { model: Review, attributes: [] },
-    ],
-    attributes: {
-      include: [
-        [sequelize.fn("AVG", sequelize.col("Reviews.stars")), "avgRating"],
-        [sequelize.col("SpotImages.url"), "previewImage"],
-      ],
-    },
+  let allSpots = await Spot.findAll({
+    include: [{ model: SpotImage }, { model: Review }],
   });
+  let Spots = [];
+  allSpots.forEach((spot) => {
+    Spots.push(spot.toJSON());
+  });
+
+  Spots.forEach((spot) => {
+    let count = 0;
+    let sum = 0.0;
+    spot.Reviews.forEach((Review) => {
+      count++;
+      sum += parseFloat(Review.stars);
+      console.log(Review);
+    });
+    console.log({ count, sum });
+    spot.avgRating = sum / count;
+    delete spot.Reviews;
+  });
+
+  Spots.forEach((spot) => {
+    spot.SpotImages.forEach((SpotImage) => {
+      if (SpotImage.preview == true) {
+        spot.previewImage = SpotImage.url;
+      }
+    });
+    if (!spot.previewImage) {
+      spot.previewImage = " image coming soon";
+    }
+    delete spot.SpotImages;
+  });
+
   res.status(200);
   return res.json({ Spots });
 });
@@ -26,32 +48,62 @@ router.get("/", async (req, res, next) => {
 //Get all Spots owned by the Current User
 router.get("/current", requireAuth, async (req, res, next) => {
   const { id } = req.user;
-  let allSpots = {};
   let where = {
     ownerId: id,
   };
-  allSpots.Spots = await Spot.findAll({
+  allSpots = await Spot.findAll({
     where,
-    include: [
-      { model: SpotImage, attributes: [] },
-      { model: Review, attributes: [] },
-    ],
-    attributes: {
-      include: [
-        [sequelize.fn("AVG", sequelize.col("Reviews.stars")), "avgRating"],
-        [sequelize.col("SpotImages.url"), "previewImage"],
-      ],
-    },
+    include: [{ model: SpotImage }, { model: Review }],
   });
+  let Spots = [];
+  allSpots.forEach((spot) => {
+    Spots.push(spot.toJSON());
+  });
+
+  Spots.forEach((spot) => {
+    let count = 0;
+    let sum = 0.0;
+    spot.Reviews.forEach((Review) => {
+      count++;
+      sum += parseFloat(Review.stars);
+      console.log(Review);
+    });
+    console.log({ count, sum });
+    spot.avgRating = sum / count;
+    delete spot.Reviews;
+  });
+
+  Spots.forEach((spot) => {
+    spot.SpotImages.forEach((SpotImage) => {
+      if (SpotImage.preview == true) {
+        spot.previewImage = SpotImage.url;
+      }
+    });
+    if (!spot.previewImage) {
+      spot.previewImage = " image coming soon";
+    }
+    delete spot.SpotImages;
+  });
+
   res.status(200);
-  return res.json(allSpots);
+  return res.json({ Spots });
 });
 
-//Get details of a Spot from an id without "numReviews","avgRating" and "numReviews"
+//Get details of a Spot from an id
 router.get("/:spotId", async (req, res, next) => {
   const { spotId } = req.params;
 
-  const theSpot = await Spot.findByPk(parseInt(spotId));
+  let theSpot = await Spot.findByPk(parseInt(spotId), {
+    include: [
+      { model: SpotImage },
+      { model: Review },
+      {
+        model: User,
+        as: "Owner",
+        attributes: ["id", "firstName", "lastName"],
+      },
+    ],
+  });
   if (!theSpot) {
     res.status(404);
     return res.json({
@@ -59,6 +111,20 @@ router.get("/:spotId", async (req, res, next) => {
       statusCode: 404,
     });
   } else {
+    theSpot = theSpot.toJSON();
+    console.log(theSpot);
+    let count = 0;
+    let sum = 0.0;
+    theSpot.Reviews.forEach((Review) => {
+      count++;
+      sum += parseFloat(Review.stars);
+      //console.log(Review);
+    });
+    console.log({ count, sum });
+    theSpot.numReviews = count;
+    theSpot.avgRating = sum / count;
+    delete theSpot.Reviews;
+
     res.status(200);
     return res.json(theSpot);
   }
