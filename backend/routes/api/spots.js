@@ -5,6 +5,7 @@ const {
   SpotImage,
   Review,
   sequelize,
+  ReviewImage,
   Booking,
 } = require("../../db/models");
 const { check, validationResult } = require("express-validator");
@@ -94,6 +95,40 @@ router.get("/current", requireAuth, async (req, res, next) => {
 
   res.status(200);
   return res.json({ Spots });
+});
+
+//Get all Reviews by a Spot's id
+
+router.get("/:spotId/reviews", async (req, res, next) => {
+  const { spotId } = req.params;
+  let theSpot = await Spot.findByPk(parseInt(spotId));
+  if (!theSpot) {
+    res.status(404);
+    return res.json({
+      message: "Spot couldn't be found",
+      statusCode: 404,
+    });
+  }
+  let where = {
+    spotId,
+  };
+  const allReviews = await Review.findAll({
+    where,
+    include: [
+      {
+        model: User,
+        required: true,
+        attributes: ["id", "firstName", "lastName"],
+      },
+      {
+        model: ReviewImage,
+        required: true,
+        attributes: ["id", "url"],
+      },
+    ],
+  });
+  res.status(200);
+  return res.json({ allReviews });
 });
 
 //Get details of a Spot from an id
