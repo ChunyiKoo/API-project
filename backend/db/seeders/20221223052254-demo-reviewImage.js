@@ -23,15 +23,15 @@ module.exports = {
       [
         {
           reviewId: 3,
-          url: "review image1 url",
+          url: "www.reviewImage1.com",
         },
         {
           reviewId: 2,
-          url: "review image2 url",
+          url: "www.reviewImage2.com",
         },
         {
           reviewId: 1,
-          url: "review image3 url",
+          url: "www.reviewImage3.com",
         },
       ],
       {}
@@ -50,11 +50,11 @@ module.exports = {
     return queryInterface.bulkDelete(
       options,
       {
-        reviewId: {
+        url: {
           [Op.in]: [
-            "review image1 url",
-            "review image2 url",
-            "review image1 url",
+            "www.reviewImage1.com",
+            "www.reviewImage2.com",
+            "www.reviewImage3.com",
           ],
         },
       },

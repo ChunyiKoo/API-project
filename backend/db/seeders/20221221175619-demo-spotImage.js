@@ -21,17 +21,17 @@ module.exports = {
       options,
       [
         {
-          url: "image url1",
+          url: "www.spotImageurl1.com",
           preview: true,
           spotId: 1,
         },
         {
-          url: "image url2",
+          url: "www.spotImageurl2.com",
           preview: true,
           spotId: 2,
         },
         {
-          url: "image url3",
+          url: "www.spotImageurl3.com",
           preview: true,
           spotId: 3,
         },
@@ -52,7 +52,13 @@ module.exports = {
     return queryInterface.bulkDelete(
       options,
       {
-        spotId: { [Op.in]: [1, 2, 3] },
+        url: {
+          [Op.in]: [
+            "www.spotImageurl1.com",
+            "www.spotImageurl2.com",
+            "www.spotImageurl3.com",
+          ],
+        },
       },
       {}
     );
