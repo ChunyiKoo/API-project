@@ -5,10 +5,167 @@ const {
   Review,
   SpotImage,
   ReviewImage,
+  sequelize,
 } = require("../../db/models");
 const { check, validationResult } = require("express-validator");
 const { requireAuth } = require("../../utils/auth");
 const router = express.Router();
+
+//handleValidationErrs middleware
+const handleValidationErrs = (req, _res, next) => {
+  let err = {};
+  const validationErrors = validationResult(req);
+  if (!validationErrors.isEmpty()) {
+    validationErrors.array().forEach((error) => {
+      err[error.param] = error.msg;
+    });
+
+    // const err = Error("Validation Error");
+    // err.errors = errors;
+    // err.status = 400;
+    // err.title = "Validation Error";
+    next(err);
+  }
+  next();
+};
+
+//Validation Error formatter
+const createValidation = (errors, _req, res, _next) => {
+  res.status(400);
+  res.json({
+    message: "Validation Error",
+    statusCode: 400,
+    errors,
+  });
+};
+
+//Add an Image to a Review based on the Review's id
+router.post("/:reviewId/images", async (req, res, next) => {
+  const reviewId = parseInt(req.params.reviewId);
+  let { url } = req.body;
+  const theReview = await Review.findByPk(reviewId);
+
+  if (!theReview) {
+    res.status(404);
+    return res.json({
+      message: "Review couldn't be found",
+      statusCode: 404,
+    });
+  }
+
+  let where = {
+    reviewId,
+  };
+
+  const nReviewImages = await ReviewImage.findOne({
+    attributes: {
+      include: [[sequelize.fn("COUNT", sequelize.col("id")), "numReviews"]],
+    },
+    where,
+  });
+  nReviewImages.toJSON();
+  console.log(nReviewImages);
+  if (parseInt(nReviewImages.dataValues.numReviews) >= 10) {
+    res.status(403);
+    return res.json({
+      message: "Maximum number of images for this resource was reached",
+      statusCode: 403,
+    });
+  }
+
+  const newReviewImage = await ReviewImage.create({
+    url,
+    reviewId,
+  });
+
+  let id = newReviewImage.id;
+  url = newReviewImage.url;
+
+  res.status(200);
+  return res.json({ id, url });
+});
+
+const validateCreateReview = [
+  check("review")
+    .exists({ checkFalsy: true })
+    .withMessage("Review text is required"),
+  check("stars")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Stars must be an integer from 1 to 5"),
+  handleValidationErrs,
+  createValidation,
+];
+//Edit a Review
+router.put(
+  "/:reviewId",
+  requireAuth,
+  validateCreateReview,
+  async (req, res, next) => {
+    const reviewId = parseInt(req.params.reviewId);
+    const theReview = await Review.findByPk(reviewId);
+
+    if (!theReview) {
+      res.status(404);
+      return res.json({
+        message: "Review couldn't be found",
+        statusCode: 404,
+      });
+    }
+
+    const userId = parseInt(theReview.userId);
+    let { review, stars } = req.body;
+    const { id } = req.user;
+    const currentUser = parseInt(id);
+
+    if (currentUser !== userId) {
+      res.status(401);
+      return res.json({
+        message: "Not your review. Please try other review numbers.",
+        statusCode: 401,
+      });
+    }
+
+    theReview.set({ review, stars });
+    await theReview.save();
+
+    res.status(200);
+    return res.json(theReview);
+  }
+);
+
+//Delete a Review
+router.delete("/:reviewId", requireAuth, async (req, res, next) => {
+  const reviewId = parseInt(req.params.reviewId);
+  const theReview = await Review.findByPk(reviewId);
+
+  if (!theReview) {
+    res.status(404);
+    return res.json({
+      message: "Review couldn't be found",
+      statusCode: 404,
+    });
+  }
+
+  const userId = parseInt(theReview.userId);
+  const { id } = req.user;
+  const currentUser = parseInt(id);
+
+  if (currentUser !== userId) {
+    res.status(401);
+    return res.json({
+      message: "Not your review. Please try other review numbers.",
+      statusCode: 401,
+    });
+  }
+
+  await theReview.destroy();
+  res.status(200);
+  return res.json({
+    message: "Successfully deleted",
+    statusCode: 200,
+  });
+});
+
 //Get all Reviews of the Current User
 router.get("/current", requireAuth, async (req, res, next) => {
   const { id } = req.user;
@@ -66,6 +223,6 @@ router.get("/current", requireAuth, async (req, res, next) => {
   return res.json({ Reviews: reviewList });
 });
 
-//Get all Reviews by a Spot's id
+//
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const express = require("express");
+const { Op } = require("sequelize");
 const {
   Spot,
   User,
@@ -8,17 +9,181 @@ const {
   ReviewImage,
   Booking,
 } = require("../../db/models");
-const { check, validationResult } = require("express-validator");
+const { check, validationResult, query } = require("express-validator");
 const { requireAuth } = require("../../utils/auth");
-const { NUMBER } = require("sequelize");
+const { NUMBER, and } = require("sequelize");
 const router = express.Router();
+
+//handleValidationErrs middleware
+const handleValidationErrs = (req, _res, next) => {
+  let err = {};
+  const validationErrors = validationResult(req);
+  if (!validationErrors.isEmpty()) {
+    validationErrors.array().forEach((error) => {
+      err[error.param] = error.msg;
+    });
+
+    // const err = Error("Validation Error");
+    // err.errors = errors;
+    // err.status = 400;
+    // err.title = "Validation Error";
+    next(err);
+  }
+  next();
+};
+
+//Validation Error formatter
+const createValidation = (errors, _req, res, _next) => {
+  res.status(400);
+  res.json({
+    message: "Validation Error",
+    statusCode: 400,
+    errors,
+  });
+};
+// ...
+const validateGetSpot = [
+  query("page")
+    .optional({ nullable: true })
+    .isInt({
+      min: 1,
+    })
+    .withMessage("Page must be greater than or equal to 1"),
+  query("size")
+    .optional({ nullable: true })
+    .isInt({
+      min: 1,
+    })
+    .withMessage("Size must be greater than or equal to 1"),
+  query("maxLat")
+    .optional({ nullable: true })
+    .isFloat({
+      min: -90,
+      max: 90,
+    })
+    .withMessage("Maximum latitude is invalid"),
+  query("minLat")
+    .optional({ nullable: true })
+    .isFloat({
+      min: -90,
+      max: 90,
+    })
+    .withMessage("Minimum latitude is invalid"),
+  query("minLng")
+    .optional({ nullable: true })
+    .isFloat({
+      min: -180,
+      max: 180,
+    })
+    .withMessage("Minimum longitude is invalid"),
+  query("maxLng")
+    .optional({ nullable: true })
+    .isFloat({
+      min: -180,
+      max: 180,
+    })
+    .withMessage("Maximum longitude is invalid"),
+  query("minPrice")
+    .optional({ nullable: true })
+    .isFloat({
+      min: 0,
+    })
+    .withMessage("Minimum price must be greater than or equal to 0"),
+  query("maxPrice")
+    .optional({ nullable: true })
+    .isFloat({
+      min: 0,
+    })
+    .withMessage("Maximum price must be greater than or equal to 0"),
+
+  handleValidationErrs,
+  createValidation,
+];
 
 //Get all Spots
 
-router.get("/", async (req, res, next) => {
+router.get("/", validateGetSpot, async (req, res, next) => {
+  let { page, size, minLat, maxLat, minLng, maxLng, minPrice, maxPrice } =
+    req.query;
+
+  let valid = true;
+  let validation_json = {
+    message: "Validation Error",
+    statusCode: 400,
+    errors: {},
+  };
+
+  if (!page || parseInt(page) < 1 || parseInt(page) > 10) page = 1;
+  if (!size || parseInt(size) < 1 || parseInt(size) > 20) size = 20;
+  page = parseInt(page);
+  size = parseInt(size);
+  let pagination = {};
+  pagination.offset = size * (page - 1);
+  pagination.limit = size;
+
+  if ((minLat !== null) & (maxLat !== null)) {
+    if (parseFloat(minLat) > parseFloat(maxLat)) {
+      valid = false;
+      validation_json.errors.Latitude =
+        "Maximum Latitude should be greater than Minimum Latitude";
+    }
+  }
+
+  let where = {};
+  if (!minLat & !maxLat) {
+  } else if (!maxLat) {
+    where.lat = { [Op.gte]: minLat };
+  } else if (!minLat) {
+    where.lat = { [Op.lte]: maxLat };
+  } else {
+    where.lat = { [Op.and]: { [Op.gte]: minLat, [Op.lte]: maxLat } };
+  }
+
+  if ((minLng !== null) & (maxLng !== null)) {
+    if (parseFloat(minLng) > parseFloat(maxLng)) {
+      valid = false;
+      validation_json.errors.Longitude =
+        "Maximum Longitude should be greater than Minimum Longitude";
+    }
+  }
+
+  if (!minLng & !maxLng) {
+  } else if (!maxLng) {
+    where.lng = { [Op.gte]: minLng };
+  } else if (!minLat) {
+    where.lng = { [Op.lte]: maxLng };
+  } else {
+    where.lng = { [Op.and]: { [Op.gte]: minLng, [Op.lte]: maxLng } };
+  }
+
+  if ((minPrice !== null) & (maxPrice !== null)) {
+    if (parseFloat(minPrice) > parseFloat(maxPrice)) {
+      valid = false;
+      validation_json.errors.Price =
+        "Maximum Price should be greater than Minimum Price";
+    }
+  }
+
+  if (!valid) {
+    res.status(400);
+    return res.json(validation_json);
+  }
+
+  if (!minPrice & !maxPrice) {
+  } else if (!maxPrice) {
+    where.price = { [Op.gte]: minPrice };
+  } else if (!minPrice) {
+    where.price = { [Op.lte]: maxPrice };
+  } else {
+    where.price = { [Op.and]: { [Op.gte]: minPrice, [Op.lte]: maxPrice } };
+  }
+
   let allSpots = await Spot.findAll({
     include: [{ model: SpotImage }, { model: Review }],
+    where,
+    ...pagination,
   });
+
   let Spots = [];
   allSpots.forEach((spot) => {
     Spots.push(spot.toJSON());
@@ -50,7 +215,7 @@ router.get("/", async (req, res, next) => {
   });
 
   res.status(200);
-  return res.json({ Spots });
+  return res.json({ Spots, page, size });
 });
 
 //Get all Spots owned by the Current User
@@ -131,6 +296,65 @@ router.get("/:spotId/reviews", async (req, res, next) => {
   return res.json({ allReviews });
 });
 
+const validateCreateReview = [
+  check("review")
+    .exists({ checkFalsy: true })
+    .withMessage("Review text is required"),
+  check("stars")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Stars must be an integer from 1 to 5"),
+  handleValidationErrs,
+  createValidation,
+];
+
+//Create a Review for a Spot based on the Spot's id
+
+router.post(
+  "/:spotId/reviews",
+  requireAuth,
+  validateCreateReview,
+  async (req, res, next) => {
+    const { spotId } = req.params;
+    const { id } = req.user;
+    const { review, stars } = req.body;
+    const theSpot = await Spot.findByPk(parseInt(spotId));
+
+    if (!theSpot) {
+      res.status(404);
+      return res.json({
+        message: "Spot couldn't be found",
+        statusCode: 404,
+      });
+    }
+
+    let where = {
+      spotId,
+      userId: id,
+    };
+
+    let theReview = await Review.findOne({ where });
+
+    if (theReview) {
+      res.status(403);
+      return res.json({
+        message: "User already has a review for this spot",
+        statusCode: 403,
+      });
+    }
+
+    // need to add validation for review and stars
+
+    const newReview = await Review.create({
+      spotId,
+      userId: id,
+      review,
+      stars,
+    });
+    res.status(201);
+    return res.json(newReview);
+  }
+);
+
 //Get details of a Spot from an id
 router.get("/:spotId", async (req, res, next) => {
   const { spotId } = req.params;
@@ -171,33 +395,6 @@ router.get("/:spotId", async (req, res, next) => {
     return res.json(theSpot);
   }
 });
-//
-const handleValidationErrs = (req, _res, next) => {
-  let err = {};
-  const validationErrors = validationResult(req);
-  if (!validationErrors.isEmpty()) {
-    validationErrors.array().forEach((error) => {
-      err[error.param] = error.msg;
-    });
-
-    // const err = Error("Validation Error");
-    // err.errors = errors;
-    // err.status = 400;
-    // err.title = "Validation Error";
-    next(err);
-  }
-  next();
-};
-
-//Validation Error formatter
-const createSpotValidation = (errors, _req, res, _next) => {
-  res.status(400);
-  res.json({
-    message: "Validation Error",
-    statusCode: 400,
-    errors,
-  });
-};
 
 // ...
 const validateCreateSpot = [
@@ -216,13 +413,13 @@ const validateCreateSpot = [
     })
     .withMessage("Name must be less than 50 characters"),
   check("lat")
-    .isDecimal({
+    .isFloat({
       min: -90,
       max: 90,
     })
     .withMessage("Latitude is not valid"),
   check("lng")
-    .isDecimal({
+    .isFloat({
       min: -180,
       max: 180,
     })
@@ -234,7 +431,7 @@ const validateCreateSpot = [
     .exists({ checkFalsy: true })
     .withMessage("price per day is required"),
   handleValidationErrs,
-  createSpotValidation,
+  createValidation,
 ];
 
 //Create a Spot owned by current User
@@ -360,7 +557,7 @@ router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
     spot.toJSON();
     const ownerId = spot.ownerId;
     if (currentUser === ownerId) {
-      console.log("currentUser === spot.Users.id");
+      console.log("currentUser === ownerId");
       let Bookings = [];
       spot.Users.forEach((user) => {
         user.toJSON();
