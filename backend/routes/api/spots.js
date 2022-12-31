@@ -35,7 +35,7 @@ const handleValidationErrs = (req, _res, next) => {
 //Validation Error formatter
 const createValidation = (errors, _req, res, _next) => {
   res.status(400);
-  res.json({
+  return res.json({
     message: "Validation Error",
     statusCode: 400,
     errors,
