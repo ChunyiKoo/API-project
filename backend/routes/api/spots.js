@@ -242,7 +242,8 @@ router.get("/current", requireAuth, async (req, res, next) => {
       console.log(Review);
     });
     console.log({ count, sum });
-    spot.avgRating = sum / count;
+    if (count === 0) spot.avgRating = "Has not been rated yet";
+    else spot.avgRating = sum / count;
     delete spot.Reviews;
   });
 
@@ -341,8 +342,6 @@ router.post(
         statusCode: 403,
       });
     }
-
-    // need to add validation for review and stars
 
     const newReview = await Review.create({
       spotId,
@@ -457,8 +456,9 @@ router.post("/", validateCreateSpot, async (req, res, next) => {
   return res.json(newSpot);
 });
 
-//Add an Image to a Spot based on the Spot's id
-router.post("/:spotId/images", async (req, res, next) => {
+//*Add an Image to a Spot based on the Spot's id
+router.post("/:spotId/images", requireAuth, async (req, res, next) => {
+  let { id } = req.user;
   const { spotId } = req.params;
   const { url, preview } = req.body;
   const theSpot = await Spot.findByPk(parseInt(spotId));
@@ -469,16 +469,25 @@ router.post("/:spotId/images", async (req, res, next) => {
       message: "Spot couldn't be found",
       statusCode: 404,
     });
-  } else {
-    const newSpotImage = await SpotImage.create({
-      url,
-      preview,
-      spotId,
-    });
-    const { id } = newSpotImage;
-    res.status(200);
-    return res.json({ id, url, preview });
   }
+
+  const ownerId = parseInt(theSpot.ownerId);
+  if (ownerId !== id) {
+    res.status(403);
+    return res.json({
+      message: "Only owner can add an image.",
+      statusCode: 403,
+    });
+  }
+  const newSpotImage = await SpotImage.create({
+    url,
+    preview,
+    spotId,
+  });
+
+  id = newSpotImage.id;
+  res.status(200);
+  return res.json({ id, url, preview });
 });
 
 //Edit a Spot
