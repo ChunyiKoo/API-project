@@ -30,26 +30,38 @@ const handleValidationErrs = (req, _res, next) => {
 };
 
 //Validation Error formatter
-const createValidation = (errors, _req, res, _next) => {
-  res.status(400);
-  res.json({
-    message: "Validation Error",
-    statusCode: 400,
-    errors,
-  });
-};
+// const createValidation = (errors, _req, res, _next) => {
+//   res.status(400);
+//   res.json({
+//     message: "Validation Error",
+//     statusCode: 400,
+//     errors,
+//   });
+// };
 
 //Add an Image to a Review based on the Review's id
-router.post("/:reviewId/images", async (req, res, next) => {
+router.post("/:reviewId/images", requireAuth, async (req, res, next) => {
   const reviewId = parseInt(req.params.reviewId);
   let { url } = req.body;
   const theReview = await Review.findByPk(reviewId);
-
   if (!theReview) {
     res.status(404);
     return res.json({
       message: "Review couldn't be found",
       statusCode: 404,
+    });
+  }
+
+  const currentUser = parseInt(req.user.id);
+  const userId = parseInt(theReview.userId);
+
+  console.log({ currentUser }, { userId });
+
+  if (currentUser !== userId) {
+    res.status(401);
+    return res.json({
+      message: "Not your review. Please try other review numbers.",
+      statusCode: 401,
     });
   }
 
@@ -93,7 +105,6 @@ const validateCreateReview = [
     .isInt({ min: 1, max: 5 })
     .withMessage("Stars must be an integer from 1 to 5"),
   handleValidationErrs,
-  createValidation,
 ];
 //Edit a Review
 router.put(
@@ -223,6 +234,14 @@ router.get("/current", requireAuth, async (req, res, next) => {
   return res.json({ Reviews: reviewList });
 });
 
-//
+// Error handler to log errors
+router.use((errors, _req, res, _next) => {
+  res.status(400);
+  return res.json({
+    message: "Validation Error",
+    statusCode: 400,
+    errors,
+  });
+});
 
 module.exports = router;

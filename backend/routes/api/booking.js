@@ -1,4 +1,5 @@
 const express = require("express");
+const { Op } = require("sequelize");
 const { Booking, User, Spot, SpotImage } = require("../../db/models");
 const { check, validationResult } = require("express-validator");
 const { requireAuth } = require("../../utils/auth");
@@ -52,7 +53,7 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
   const currentUser = parseInt(id);
   const { bookingId } = req.params;
   console.log({ bookingId });
-  const theBooking = await Booking.findByPk(parseInt(bookingId));
+  let theBooking = await Booking.findByPk(parseInt(bookingId));
   if (!theBooking) {
     res.status(404);
     return res.json({
@@ -72,21 +73,21 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
       statusCode: 401,
     });
   }
-
-  let { startDate, endDate } = req.body;
-  let start = new Date(new Date(startDate).toDateString());
-  let end = new Date(new Date(endDate).toDateString());
-  let bookStart = new Date(new Date(theBooking.startDate).toDateString());
-  let bookEnd = new Date(new Date(theBooking.startDate).toDateString());
+  let oldBookStart = new Date(new Date(theBooking.startDate).toDateString());
+  let oldBookEnd = new Date(new Date(theBooking.endDate).toDateString());
   let today = new Date(new Date(Date.now()).toDateString());
 
-  if (today - bookEnd > 0) {
+  if (today - oldBookStart >= 0) {
     res.status(403);
     return res.json({
       message: "Past bookings can't be modified",
       statusCode: 403,
     });
   }
+
+  let { startDate, endDate } = req.body;
+  let start = new Date(new Date(startDate).toDateString());
+  let end = new Date(new Date(endDate).toDateString());
 
   if (end - start <= 0) {
     res.status(400);
@@ -98,34 +99,71 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
       },
     });
   }
-  if (bookEnd - start >= 0 && start - bookStart >= 0) {
-    res.status(403);
-    return res.json({
-      message: "Sorry, this spot is already booked for the specified dates",
-      statusCode: 403,
-      errors: {
-        startDate: "Start date conflicts with an existing booking",
-      },
-    });
-  }
-  if (bookEnd - end >= 0 && end - bookStart >= 0) {
-    res.status(403);
-    return res.json({
-      message: "Sorry, this spot is already booked for the specified dates",
-      statusCode: 403,
-      errors: {
-        endDate: "End date conflicts with an existing booking",
-      },
-    });
-  }
-  const newBooking = await Booking.create({
+
+  const allBookings = await Booking.findAll({
+    where: { spotId, id: { [Op.ne]: bookingId } },
+  });
+
+  allBookings.forEach((booking) => {
+    let { startDate, endDate } = booking;
+    let bookStart = new Date(new Date(startDate).toDateString());
+    let bookEnd = new Date(new Date(endDate).toDateString());
+    console.log(start, end, startDate, endDate);
+
+    if (bookEnd - start >= 0 && start - bookStart >= 0) {
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          startDate: "Start date conflicts with an existing booking",
+        },
+      });
+    }
+    if (bookEnd - end >= 0 && end - bookStart >= 0) {
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          endDate: "End date conflicts with an existing booking",
+        },
+      });
+    }
+
+    if (bookEnd - end >= 0 && start - bookStart >= 0) {
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          startDate: "Start date conflicts with an existing booking",
+          endDate: "End date conflicts with an existing booking",
+        },
+      });
+    }
+
+    if (end - bookEnd >= 0 && bookStart - start >= 0) {
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          startDate: "Start date conflicts with an existing booking",
+          endDate: "End date conflicts with an existing booking",
+        },
+      });
+    }
+  });
+
+  await theBooking.update({
     spotId,
     userId: currentUser,
     startDate: start,
     endDate: end,
   });
   res.status(200);
-  return res.json(newBooking);
+  return res.json(theBooking);
 });
 
 //Delete a Booking
@@ -148,7 +186,7 @@ router.delete("/:bookingId", requireAuth, async (req, res, next) => {
   const spotId = parseInt(theBooking.spotId);
   const theSpot = await Spot.findByPk(parseInt(spotId));
   const ownerId = parseInt(theSpot.ownerId);
-
+  console.log({ userId }, { currentUser }, { ownerId });
   if (currentUser !== userId && currentUser !== ownerId) {
     res.status(401);
     return res.json({
@@ -158,10 +196,10 @@ router.delete("/:bookingId", requireAuth, async (req, res, next) => {
   }
 
   let bookStart = new Date(new Date(theBooking.startDate).toDateString());
-  let today = new Date(new Date("2021-11-18").toDateString());
-  //let today = new Date(new Date(Date.now()).toDateString());
+  //let today = new Date(new Date("2023-11-18").toDateString());
+  let today = new Date(new Date(Date.now()).toDateString());
   console.log(today - bookStart, { today }, { bookStart });
-  if (today - bookStart < 0) {
+  if (today - bookStart > 0) {
     res.status(403);
     return res.json({
       message: "Bookings that have been started can't be deleted",
