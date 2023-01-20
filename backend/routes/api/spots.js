@@ -309,7 +309,7 @@ const validateCreateReview = [
   //createValidation,
 ];
 
-//*******Create a Review for a Spot based on the Spot's id
+//Create a Review for a Spot based on the Spot's id
 
 router.post(
   "/:spotId/reviews",
