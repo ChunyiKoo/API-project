@@ -69,15 +69,18 @@ router.post("/:reviewId/images", requireAuth, async (req, res, next) => {
     reviewId,
   };
 
-  const nReviewImages = await ReviewImage.findOne({
-    attributes: {
-      include: [[sequelize.fn("COUNT", sequelize.col("id")), "numReviews"]],
-    },
-    where,
-  });
-  nReviewImages.toJSON();
-  console.log(nReviewImages);
-  if (parseInt(nReviewImages.dataValues.numReviews) >= 10) {
+  const nReviewImages = await ReviewImage.count({ where });
+  console.log("ABC", nReviewImages);
+
+  // const nReviewImages = await ReviewImage.findOne({
+  //   attributes: {
+  //     include: [[sequelize.fn("COUNT", sequelize.col("id")), "numReviews"]],
+  //   },
+  //   where,
+  // });
+  // nReviewImages.toJSON();
+  // console.log(nReviewImages);
+  if (parseInt(nReviewImages) >= 10) {
     res.status(403);
     return res.json({
       message: "Maximum number of images for this resource was reached",
