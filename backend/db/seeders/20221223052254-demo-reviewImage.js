@@ -22,7 +22,7 @@ module.exports = {
       options,
       [
         {
-          reviewId: 3,
+          reviewId: 1,
           url: "www.reviewImage1.com",
         },
         {
@@ -30,7 +30,7 @@ module.exports = {
           url: "www.reviewImage2.com",
         },
         {
-          reviewId: 1,
+          reviewId: 3,
           url: "www.reviewImage3.com",
         },
       ],

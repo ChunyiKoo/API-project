@@ -111,7 +111,16 @@ module.exports = {
     return queryInterface.bulkDelete(
       options,
       {
-        name: { [Op.in]: ["App Academy 1", "App Academy 2", "App Academy 3"] },
+        name: {
+          [Op.in]: [
+            "App Academy 1",
+            "App Academy 2",
+            "App Academy 3",
+            "App Academy 4",
+            "App Academy 5",
+            "App Academy 6",
+          ],
+        },
       },
       {}
     );

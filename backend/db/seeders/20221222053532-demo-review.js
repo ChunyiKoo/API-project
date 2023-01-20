@@ -57,7 +57,7 @@ module.exports = {
     return queryInterface.bulkDelete(
       options,
       {
-        userId: { [Op.in]: [1, 2, 3] },
+        id: { [Op.in]: [1, 2, 3] },
       },
       {}
     );
