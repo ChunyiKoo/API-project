@@ -392,7 +392,7 @@ router.get("/:spotId", async (req, res, next) => {
     });
     console.log({ count, sum });
     theSpot.numReviews = count;
-    theSpot.avgRating = sum / count;
+    theSpot.avgStarRating = sum / count;
     delete theSpot.Reviews;
 
     res.status(200);
