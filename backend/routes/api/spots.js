@@ -279,7 +279,7 @@ router.get("/:spotId/reviews", async (req, res, next) => {
   let where = {
     spotId,
   };
-  const allReviews = await Review.findAll({
+  const Reviews = await Review.findAll({
     where,
     include: [
       {
@@ -295,7 +295,7 @@ router.get("/:spotId/reviews", async (req, res, next) => {
     ],
   });
   res.status(200);
-  return res.json({ allReviews });
+  return res.json({ Reviews });
 });
 
 const validateCreateReview = [
