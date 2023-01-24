@@ -596,47 +596,37 @@ router.delete("/:spotId", async (req, res, next) => {
 router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
   let { id } = req.user;
   const currentUser = parseInt(id);
-  const { spotId } = req.params;
+  let { spotId } = req.params;
+  spotId = parseInt(spotId);
 
-  const spot = await Spot.findByPk(spotId, {
-    include: {
-      //attributes: ["id", "firstName", "lastName"],
-      model: User,
-      //include: { model: Booking },
-    },
-  });
+  const spot = await Spot.findByPk(spotId);
   if (!spot) {
     res.status(404);
     return res.json({
       message: "Spot couldn't be found",
       statusCode: 404,
     });
-  } else {
-    spot.toJSON();
-    const ownerId = spot.ownerId;
-    if (currentUser === ownerId) {
-      console.log("currentUser === ownerId");
-      let Bookings = [];
-      spot.Users.forEach((user) => {
-        user.toJSON();
-        const { id, firstName, lastName } = user;
-        const User = { id, firstName, lastName };
-        Bookings.push({ User, ...user.Booking.toJSON() });
-      });
-      res.status(200);
-      return res.json({ Bookings });
-    } else {
-      console.log("user is not owner");
-      let Bookings = [];
-      spot.Users.forEach((user) => {
-        user.toJSON();
-        const { spotId, startDate, endDate } = user.Booking.toJSON();
-        Bookings.push({ spotId, startDate, endDate });
-      });
+  }
 
-      res.status(200);
-      return res.json({ Bookings });
-    }
+  const ownerId = spot.ownerId;
+
+  if (currentUser === ownerId) {
+    console.log("currentUser === ownerId");
+    const Bookings = await Booking.findAll({
+      where: { spotId },
+      include: { model: User, attributes: ["id", "firstName", "lastName"] },
+    });
+    res.status(200);
+    return res.json({ Bookings });
+  } else {
+    console.log("user is not owner");
+    const Bookings = await Booking.findAll({
+      attributes: ["id", "startDate", "endDate"],
+      where: { spotId },
+    });
+
+    res.status(200);
+    return res.json({ Bookings });
   }
 });
 
@@ -644,7 +634,8 @@ router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
 router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
   let { id } = req.user;
   const currentUser = parseInt(id);
-  const { spotId } = req.params;
+  let { spotId } = req.params;
+  spotId = parseInt(spotId);
 
   const spot = await Spot.findByPk(spotId);
 
@@ -660,7 +651,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
   const endD = req.body.endDate;
   let start = new Date(new Date(startD).toDateString());
   let end = new Date(new Date(endD).toDateString());
-  let newBooking;
+
   if (end - start <= 0) {
     res.status(400);
     return res.json({
@@ -672,6 +663,8 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
     });
   }
 
+  console.log({ start, end });
+
   const ownerId = parseInt(spot.ownerId);
   if (currentUser === ownerId) {
     res.status(403);
@@ -680,38 +673,22 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
       statusCode: 403,
     });
   }
-
+  console.log({ ownerId, spotId, currentUser });
   const allBookings = await Booking.findAll({
     where: { spotId },
   });
-  allBookings.forEach((booking) => {
-    let { startDate, endDate } = booking;
-    let bookStart = new Date(new Date(startDate).toDateString());
-    let bookEnd = new Date(new Date(endDate).toDateString());
-    console.log(start, end, startDate, endDate);
-    if (bookEnd - start >= 0 && start - bookStart >= 0) {
-      res.status(403);
-      return res.json({
-        message: "Sorry, this spot is already booked for the specified dates",
-        statusCode: 403,
-        errors: {
-          startDate: "Start date conflicts with an existing booking",
-        },
-      });
-    }
 
-    if (bookEnd - end >= 0 && end - bookStart >= 0) {
-      res.status(403);
-      return res.json({
-        message: "Sorry, this spot is already booked for the specified dates",
-        statusCode: 403,
-        errors: {
-          endDate: "End date conflicts with an existing booking",
-        },
-      });
-    }
+  //console.log({ allBookings });
+
+  allBookings.forEach((booking) => {
+    let { startDate, endDate } = booking.toJSON();
+    // let bookStart = new Date(new Date(startDate).toDateString());
+    // let bookEnd = new Date(new Date(endDate).toDateString());
+    let bookStart = new Date(startDate);
+    let bookEnd = new Date(endDate);
 
     if (bookEnd - end >= 0 && start - bookStart >= 0) {
+      console.log(start, end, bookStart, bookEnd);
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -724,6 +701,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
     }
 
     if (end - bookEnd >= 0 && bookStart - start >= 0) {
+      console.log(start, end, bookStart, bookEnd);
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -734,9 +712,32 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
         },
       });
     }
-  });
 
-  newBooking = await Booking.create({
+    if (bookEnd - start >= 0 && start - bookStart >= 0) {
+      console.log(start, end, bookStart, bookEnd);
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          startDate: "Start date conflicts with an existing booking",
+        },
+      });
+    }
+
+    if (bookEnd - end >= 0 && end - bookStart >= 0) {
+      console.log(start, end, bookStart, bookEnd);
+      res.status(403);
+      return res.json({
+        message: "Sorry, this spot is already booked for the specified dates",
+        statusCode: 403,
+        errors: {
+          endDate: "End date conflicts with an existing booking",
+        },
+      });
+    }
+  });
+  const newBooking = await Booking.create({
     spotId,
     userId: currentUser,
     startDate: start,
