@@ -630,7 +630,7 @@ router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
   }
 });
 
-//Create a Booking from a Spot based on the Spot's id
+//**************Create a Booking from a Spot based on the Spot's id
 router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
   let { id } = req.user;
   const currentUser = parseInt(id);
@@ -680,6 +680,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
   //console.log({ allBookings });
 
+  let isBooked = false;
   allBookings.forEach((booking) => {
     let { startDate, endDate } = booking.toJSON();
     // let bookStart = new Date(new Date(startDate).toDateString());
@@ -689,6 +690,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
     if (bookEnd - end >= 0 && start - bookStart >= 0) {
       console.log(start, end, bookStart, bookEnd);
+      isBooked = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -702,6 +704,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
     if (end - bookEnd >= 0 && bookStart - start >= 0) {
       console.log(start, end, bookStart, bookEnd);
+      isBooked = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -715,6 +718,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
     if (bookEnd - start >= 0 && start - bookStart >= 0) {
       console.log(start, end, bookStart, bookEnd);
+      isBooked = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -727,6 +731,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
     if (bookEnd - end >= 0 && end - bookStart >= 0) {
       console.log(start, end, bookStart, bookEnd);
+      isBooked = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -737,6 +742,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
       });
     }
   });
+  if (isBooked) return;
   const newBooking = await Booking.create({
     spotId,
     userId: currentUser,
