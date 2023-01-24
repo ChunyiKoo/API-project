@@ -109,8 +109,10 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
     let bookStart = new Date(startDate);
     let bookEnd = new Date(endDate);
     console.log(start, end, startDate, endDate);
+    let inConflict = false;
 
     if (bookEnd - end >= 0 && start - bookStart >= 0) {
+      inConflict = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -123,6 +125,7 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
     }
 
     if (end - bookEnd >= 0 && bookStart - start >= 0) {
+      inConflict = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -135,6 +138,7 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
     }
 
     if (bookEnd - start >= 0 && start - bookStart >= 0) {
+      inConflict = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -145,6 +149,7 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
       });
     }
     if (bookEnd - end >= 0 && end - bookStart >= 0) {
+      inConflict = true;
       res.status(403);
       return res.json({
         message: "Sorry, this spot is already booked for the specified dates",
@@ -155,6 +160,7 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
       });
     }
   });
+  if (inConflict) return;
 
   await theBooking.update({
     spotId,
@@ -195,7 +201,7 @@ router.delete("/:bookingId", requireAuth, async (req, res, next) => {
     });
   }
 
-  let bookStart = new Date(new Date(theBooking.startDate).toDateString());
+  let bookStart = new Date(theBooking.startDate);
   //let today = new Date(new Date("2023-11-18").toDateString());
   let today = new Date(new Date(Date.now()).toDateString());
   console.log(today - bookStart, { today }, { bookStart });
