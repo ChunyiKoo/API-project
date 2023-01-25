@@ -103,13 +103,12 @@ router.put("/:bookingId", requireAuth, async (req, res, next) => {
   const allBookings = await Booking.findAll({
     where: { spotId, id: { [Op.ne]: bookingId } },
   });
-
+  let inConflict = false;
   allBookings.forEach((booking) => {
     let { startDate, endDate } = booking.toJSON();
     let bookStart = new Date(startDate);
     let bookEnd = new Date(endDate);
     console.log(start, end, startDate, endDate);
-    let inConflict = false;
 
     if (bookEnd - end >= 0 && start - bookStart >= 0) {
       inConflict = true;
