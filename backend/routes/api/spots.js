@@ -18,11 +18,14 @@ const router = express.Router();
 const handleValidationErrs = (req, _res, next) => {
   let err = {};
   const validationErrors = validationResult(req);
+  //validationResult(req) returns a Result object
+
   if (!validationErrors.isEmpty()) {
+    //.isEmpty() Returns a boolean indicating whether this result object contains no errors at all.
     validationErrors.array().forEach((error) => {
+      //.array() returns an array of validation errors
       err[error.param] = error.msg;
     });
-
     // const err = Error("Validation Error");
     // err.errors = errors;
     // err.status = 400;
@@ -41,7 +44,7 @@ const createValidation = (errors, _req, res, _next) => {
     errors,
   });
 };
-// ...
+//validateGetSpot express-validator
 const validateGetSpot = [
   query("page")
     .optional({ nullable: true })
@@ -96,8 +99,8 @@ const validateGetSpot = [
     })
     .withMessage("Maximum price must be greater than or equal to 0"),
 
-  handleValidationErrs,
-  createValidation,
+  handleValidationErrs, //handleValidationErrs middleware
+  createValidation, //Validation Error formatter
 ];
 
 //Get all Spots
@@ -106,6 +109,7 @@ router.get("/", validateGetSpot, async (req, res, next) => {
   let { page, size, minLat, maxLat, minLng, maxLng, minPrice, maxPrice } =
     req.query;
 
+  //Validation Error Collector
   let valid = true;
   let validation_json = {
     message: "Validation Error",
@@ -113,8 +117,8 @@ router.get("/", validateGetSpot, async (req, res, next) => {
     errors: {},
   };
 
-  if (!page || parseInt(page) < 1 || parseInt(page) > 10) page = 1;
-  if (!size || parseInt(size) < 1 || parseInt(size) > 20) size = 20;
+  if (!page || parseInt(page) < 1 || parseInt(page) > 10) page = 1; //default
+  if (!size || parseInt(size) < 1 || parseInt(size) > 20) size = 20; //default
   page = parseInt(page);
   size = parseInt(size);
   let pagination = {};
@@ -206,6 +210,7 @@ router.get("/", validateGetSpot, async (req, res, next) => {
   Spots.forEach((spot) => {
     spot.SpotImages.forEach((SpotImage) => {
       if (SpotImage.preview == true) {
+        //only show preview image
         spot.previewImage = SpotImage.url;
       }
     });
@@ -251,6 +256,7 @@ router.get("/current", requireAuth, async (req, res, next) => {
   Spots.forEach((spot) => {
     spot.SpotImages.forEach((SpotImage) => {
       if (SpotImage.preview == true) {
+        //only show preview image
         spot.previewImage = SpotImage.url;
       }
     });
@@ -298,6 +304,7 @@ router.get("/:spotId/reviews", async (req, res, next) => {
   return res.json({ Reviews });
 });
 
+//validateCreateReview express-validator
 const validateCreateReview = [
   check("review")
     .exists({ checkFalsy: true })
@@ -309,7 +316,7 @@ const validateCreateReview = [
   //createValidation,
 ];
 
-//Create a Review for a Spot based on the Spot's id
+//*Create a Review for a Spot based on the Spot's id
 
 router.post(
   "/:spotId/reviews",
@@ -400,7 +407,7 @@ router.get("/:spotId", async (req, res, next) => {
   }
 });
 
-// ...
+//validateCreateSpot express-validator
 const validateCreateSpot = [
   check("address")
     .exists({ checkFalsy: true })
@@ -621,7 +628,7 @@ router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
   } else {
     console.log("user is not owner");
     const Bookings = await Booking.findAll({
-      attributes: ["id", "startDate", "endDate"],
+      attributes: ["spotId", "startDate", "endDate"],
       where: { spotId },
     });
 
@@ -630,7 +637,7 @@ router.get("/:spotId/bookings", requireAuth, async (req, res, next) => {
   }
 });
 
-//**************Create a Booking from a Spot based on the Spot's id
+//******Create a Booking from a Spot based on the Spot's id
 router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
   let { id } = req.user;
   const currentUser = parseInt(id);
@@ -649,6 +656,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
 
   const startD = req.body.startDate;
   const endD = req.body.endDate;
+  //user input start and end dates
   let start = new Date(new Date(startD).toDateString());
   let end = new Date(new Date(endD).toDateString());
 
@@ -687,6 +695,7 @@ router.post("/:spotId/bookings", requireAuth, async (req, res, next) => {
     // let bookEnd = new Date(new Date(endDate).toDateString());
     let bookStart = new Date(startDate);
     let bookEnd = new Date(endDate);
+    //booking start and end dates in database
 
     if (bookEnd - end >= 0 && start - bookStart >= 0) {
       console.log(start, end, bookStart, bookEnd);
