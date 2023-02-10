@@ -36,9 +36,10 @@ router.use("/review-images", reviewImageRouter);
 //   return res.json({ user: user });
 // });
 
-router.post("/test", function (req, res) {
-  res.json({ requestBody: req.body });
-});
+//*fe* phase 0 remove */
+// router.post("/test", function (req, res) {
+//   res.json({ requestBody: req.body });
+// });
 
 // router.get("/restore-user", (req, res) => {
 //   return res.json(req.user);
