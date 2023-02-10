@@ -42,6 +42,7 @@ const handleValidationErrs = (req, _res, next) => {
 //Add an Image to a Review based on the Review's id
 router.post("/:reviewId/images", requireAuth, async (req, res, next) => {
   const reviewId = parseInt(req.params.reviewId);
+  console.log(isNaN(reviewId), reviewId);
   let { url } = req.body;
   const theReview = await Review.findByPk(reviewId);
   if (!theReview) {
